@@ -1,8 +1,9 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "ChatGPT Browser Pruner",
   "description": "Locally prunes old rendered ChatGPT message DOM nodes to reduce page DOM weight on very long conversations.",
   "version": "0.1.0",
+
   "content_scripts": [
     {
       "matches": [
@@ -13,9 +14,11 @@
       "run_at": "document_idle"
     }
   ],
+
   "browser_specific_settings": {
     "gecko": {
       "id": "chatgpt-browser-pruner@example.local"
-    }
+    },
+    "gecko_android": {}
   }
 }
