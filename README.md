@@ -1,3 +1,6 @@
+<img width="2170" height="725" alt="image" src="https://github.com/user-attachments/assets/2568208e-77f2-4ecf-bc50-e5d006ca1fd0" />
+
+
 # ChatGPT Browser Pruner
 
 A minimal Manifest V3 Firefox/Chromium extension that locally prunes old rendered ChatGPT message DOM nodes from very long conversations.
