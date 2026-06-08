@@ -1,5 +1,8 @@
 # ChatGPT Browser Pruner bookmarklet
 
+<img width="287" height="145" alt="image" src="https://github.com/user-attachments/assets/902febb5-94df-43a9-91b7-1dec7f7391db" />
+
+
 This directory contains a bookmarklet edition of ChatGPT Browser Pruner for browsers where installing the extension is inconvenient or unavailable, such as Firefox/Fennec on Android without AMO signing, unsigned extensions, Iceraven, or another browser install.
 
 The bookmarklet path is separate from the extension path. It runs only when you manually invoke it on `chatgpt.com` or `chat.openai.com`.
