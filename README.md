@@ -5,15 +5,15 @@ A minimal Manifest V3 Firefox/Chromium extension that locally prunes old rendere
 ## What it does
 
 - Runs as a content script on `chatgpt.com` and `chat.openai.com`.
-- Keeps the newest message area, using both a configurable maximum message count and a viewport-based "last few screenfuls" rule.
-- Replaces old removed messages with small placeholders by default, reducing abrupt scroll-height collapse.
-- Adds a small fixed-position banner with enabled/paused status, pruned count, pause/resume control, and normal page reload control.
+- Keeps only the newest rendered messages and removes older rendered message nodes regardless of scroll position.
+- Uses direct removal instead of placeholders, so a normal reload is the recovery path for older content.
+- Adds a small fixed-position banner with enabled/paused status, pruned count, pruning amount control, manual prune control, pause/resume control, and normal page reload control.
 
 ## Safety / privacy boundaries
 
 This extension is intentionally a local DOM-pruning monkeypatch only. It does **not** save transcripts, scrape message text, call APIs, add a server component, intercept network requests, alter ChatGPT app state, touch React internals, or write to IndexedDB/localStorage.
 
-Reload the page normally to restore the full rendered conversation from ChatGPT.
+Reload the page normally to restore the full rendered conversation from ChatGPT. Use the banner amount button to change how many newest rendered messages remain on the page during the current session.
 
 ## Installing locally
 
