@@ -1,88 +1,66 @@
-<img width="2170" height="725" alt="image" src="https://github.com/user-attachments/assets/2568208e-77f2-4ecf-bc50-e5d006ca1fd0" />
-
 # ChatGPT Browser Pruner
 
-A small Firefox/Fennec-targeted, self-distributed browser extension that locally prunes old rendered ChatGPT message DOM nodes from very long conversations.
+<img width="287" height="145" alt="ChatGPT Browser Pruner control" src="https://github.com/user-attachments/assets/902febb5-94df-43a9-91b7-1dec7f7391db" />
 
-This project is intentionally not a store-listing product, not a Chromium-first extension, and not a general extension platform. The source stays readable here; release builds are packaged as XPIs, sent through Mozilla signing as **unlisted/self-distributed** add-ons, and attached to GitHub Releases for installation from a local file.
+ChatGPT Browser Pruner is now a bookmarklet-first tool for trimming old, already-rendered ChatGPT message nodes out of very long conversations.
 
-## Target browsers
+I originally chased the Firefox/Fennec extension route, including the self-distributed signing workflow. In practice, that turned out to be a lot of ceremony for a few lines of local page JavaScript. The temporary-extension path through `about:debugging#/runtime/this-firefox` is not much better for everyday use: Firefox drops temporary add-ons when the browser restarts, so you have to load the extension again and again.
 
-- Firefox desktop
-- Firefox for Android / Fennec-family browsers that can install signed XPIs from local files
+The actual behavior is simple enough to fit comfortably in a bookmarklet, and the bookmarklet provides the same functionality without packaging, signing, or reinstalling an extension after every restart.
 
-The manifest is intentionally Manifest V2 because the extension is only a content script and does not need MV3-only features. Mozilla still documents Android-targeted extension compatibility around MV2, and Fennec-style browser restarts make temporary extension loading unsuitable for real phone use.
+The old browser-extension version still exists in [`extension/`](extension/), but the recommended path is the bookmarklet below.
 
 ## What it does
 
-- Runs as a content script on `chatgpt.com` and `chat.openai.com`.
-- Keeps the newest message area, using both a configurable maximum message count and a viewport-based "last few screenfuls" rule.
-- Replaces old removed messages with small placeholders by default, reducing abrupt scroll-height collapse.
-- Adds a small fixed-position banner with enabled/paused status, pruned count, pause/resume control, and normal page reload control.
+- Runs only when you manually invoke it on `chatgpt.com` or `chat.openai.com`.
+- Finds old ChatGPT message containers conservatively inside `main`.
+- Keeps recent/current messages.
+- Removes older rendered message DOM nodes, leaving small placeholders by default to reduce scroll-height jumps.
+- Automatically re-checks after page changes, scrolling, and resizing.
+- Shows a tiny bottom-right control with:
+  - `#: N` pruned message count
+  - `⏸` / `▶` pause and resume
+  - `↻` reload to restore the normal ChatGPT page DOM
 
-## Safety / privacy boundaries
+Reload the page normally to restore pruned messages.
 
-This extension is intentionally a local DOM-pruning monkeypatch only. It does **not** save transcripts, scrape message text, call APIs, add a server component, intercept network requests, alter ChatGPT app state, touch React internals, or write to IndexedDB/localStorage.
+## What it does not do
 
-Reload the page normally to restore the full rendered conversation from ChatGPT.
+- Does not save transcripts.
+- Does not use browser storage.
+- Does not call ChatGPT APIs.
+- Does not send network requests.
+- Does not intercept requests.
+- Does not touch React internals.
 
-## Files included in the extension
+## Install the bookmarklet
 
-- `manifest.json` — Firefox/Fennec MV2 manifest, content-script registration, and Gecko extension ID.
-- `content.js` — the entire runtime behavior.
+Mobile browsers make bookmarklets deliberately awkward to save. Creating a normal bookmark and editing its URL is usually easier than trying to paste a `javascript:` URL directly into the address bar.
 
-No build system, bundler, background script, service worker, native component, or remote code is used.
+1. Open any normal webpage.
+2. Bookmark it.
+3. Edit the bookmark.
+4. Rename it `ChatGPT Pruner`.
+5. Replace the URL with the contents of [`bookmarklet.txt`](bookmarklet.txt).
+6. Open a ChatGPT conversation.
+7. Run the bookmarklet from bookmarks/address-bar bookmark suggestions.
 
-## Installing during development
+After it runs, use `⏸` / `▶` to pause or resume pruning. Tap `↻` to reload ChatGPT and restore the normal page DOM.
 
-Temporary loading is useful for desktop development, but it is not the recommended Android/Fennec usage path because mobile browsers may kill and restart processes often.
+## Build
 
-### Firefox desktop temporary load
-
-1. Open `about:debugging#/runtime/this-firefox`.
-2. Choose **Load Temporary Add-on**.
-3. Select `manifest.json` from this repository folder.
-
-### Android/Fennec development note
-
-For regular phone use, install a signed XPI instead of relying on temporary loading. See the release workflow below.
-
-## Packaging an unsigned XPI
-
-From the repository root:
+Build with Python from the repository root:
 
 ```sh
-rm -f chatgpt-browser-pruner-0.1.0.unsigned.xpi
-zip -r chatgpt-browser-pruner-0.1.0.unsigned.xpi \
-  manifest.json \
-  content.js
+python3 build_bookmarklet.py
 ```
 
-The archive root must contain `manifest.json` directly, not a parent folder.
+The stdlib-only build script reads [`pruner-bookmarklet.js`](pruner-bookmarklet.js), strips leading/trailing whitespace, percent-encodes it, and writes [`bookmarklet.txt`](bookmarklet.txt).
 
-## Mozilla signing workflow for self-distribution
+The generated bookmarklet URL is also available from the raw GitHub file:
 
-1. Create the unsigned XPI with the packaging command above.
-2. Submit it to Mozilla Add-ons for signing as an **unlisted** add-on / self-distributed extension.
-3. Use the signed XPI returned by Mozilla as the release artifact.
-4. Attach the signed XPI to a GitHub Release.
-5. Install that signed XPI on Firefox/Fennec from a local file.
+https://raw.githubusercontent.com/thesepeoplearenotyourfriends/chatgtpt-browser-pruner-extension/refs/heads/main/bookmarklet.txt
 
-AMO is only the signing/notary step for this project. Do not direct users to an add-on store listing.
+## Browser extension
 
-## Suggested reviewer notes
-
-> ChatGPT Browser Pruner is a Firefox/Fennec-targeted content-script-only extension. It runs only on `https://chatgpt.com/*` and `https://chat.openai.com/*`. It locally removes older already-rendered ChatGPT message DOM nodes from the live page to reduce DOM weight in long conversations, optionally leaving placeholders to reduce scroll-height jumps. It does not persist transcript content, call remote APIs, intercept network requests, use a background script, use remote code, touch React internals, or write IndexedDB/localStorage. Reloading the page restores the full rendered conversation from ChatGPT.
-
-## Release checklist
-
-1. Confirm the version in `manifest.json`.
-2. Run `python -m json.tool manifest.json >/dev/null`.
-3. Package the unsigned XPI with the command above.
-4. Inspect the archive with `unzip -l chatgpt-browser-pruner-0.1.0.unsigned.xpi` and confirm only `manifest.json` and `content.js` are included at the archive root.
-5. Submit the unsigned XPI to Mozilla for unlisted/self-distributed signing.
-6. Attach the signed XPI to the matching GitHub Release.
-
-## Tuning selectors
-
-ChatGPT's DOM changes frequently. Edit the centralized selector/config block at the top of `content.js` if pruning stops finding messages or becomes too aggressive. The script prefers `main article` containers and only falls back to narrow `data-testid` / role-based selectors.
+The browser-extension implementation is kept in [`extension/`](extension/) for reference and for anyone who still wants that workflow. It is no longer the primary recommendation because signing and temporary loading add friction without adding meaningful capability for this script.
