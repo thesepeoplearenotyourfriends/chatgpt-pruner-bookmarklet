@@ -18,12 +18,11 @@
 
   const CONFIG = {
     enabledByDefault: true,
-    maxMessagesToKeep: 24,
-    keepScreenfuls: 3,
-    minMessagesBeforePrune: 10,
+    maxMessagesToKeep: 30,
+    minMessagesToKeep: 5,
+    maxMessagesToKeepLimit: 500,
     pruneThrottleMs: 750,
-    usePlaceholders: true,
-    placeholderClass: "cgpt-pruner-placeholder",
+    usePlaceholders: false,
     bannerId: "cgpt-pruner-banner",
 
     /** Prefer stable, semantic containers first. */
@@ -65,7 +64,8 @@
     banner: null,
     statusText: null,
     countText: null,
-    toggleButton: null
+    toggleButton: null,
+    amountButton: null
   };
 
   function uniqueElements(elements) {
@@ -79,10 +79,6 @@
 
   function isUnsafeCandidate(element) {
     if (!element.isConnected || element.id === CONFIG.bannerId) {
-      return true;
-    }
-
-    if (element.classList.contains(CONFIG.placeholderClass)) {
       return true;
     }
 
@@ -118,37 +114,6 @@
       .filter((element) => !isUnsafeCandidate(element));
   }
 
-  function createPlaceholderFor(element) {
-    const rect = element.getBoundingClientRect();
-    const placeholder = document.createElement("div");
-    placeholder.className = CONFIG.placeholderClass;
-    placeholder.setAttribute("aria-hidden", "true");
-    placeholder.textContent = "Older ChatGPT message pruned locally. Reload the page to restore it.";
-    placeholder.style.cssText = [
-      "box-sizing:border-box",
-      `min-height:${Math.max(40, Math.round(rect.height))}px`,
-      "margin:8px auto",
-      "max-width:min(760px, calc(100% - 32px))",
-      "padding:10px 12px",
-      "border:1px dashed rgba(127,127,127,.35)",
-      "border-radius:10px",
-      "color:#777",
-      "font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-      "background:rgba(127,127,127,.07)"
-    ].join(";");
-    return placeholder;
-  }
-
-  function shouldKeepByViewport(element) {
-    const rect = element.getBoundingClientRect();
-    const viewportBottom = window.innerHeight;
-    const keepTop = viewportBottom - window.innerHeight * CONFIG.keepScreenfuls;
-
-    // Keep anything near or below the visible working area. The bottom tolerance
-    // also protects messages currently just below the viewport during scrolling.
-    return rect.bottom >= keepTop;
-  }
-
   function pruneNow() {
     state.pruneTimer = 0;
     if (!state.enabled) {
@@ -157,29 +122,21 @@
     }
 
     const candidates = getMessageCandidates().filter(isVisibleElement);
-    if (candidates.length <= CONFIG.maxMessagesToKeep + CONFIG.minMessagesBeforePrune) {
+
+    if (!candidates.length) {
       updateBanner();
       return;
     }
 
     const keepByIndexStart = Math.max(0, candidates.length - CONFIG.maxMessagesToKeep);
-    const toPrune = candidates.filter((element, index) => {
-      if (index >= keepByIndexStart) {
-        return false;
-      }
-      return !shouldKeepByViewport(element);
-    });
+    const toPrune = candidates.filter((element, index) => index < keepByIndexStart);
 
     for (const element of toPrune) {
       if (!element.parentNode || isUnsafeCandidate(element)) {
         continue;
       }
 
-      if (CONFIG.usePlaceholders) {
-        element.replaceWith(createPlaceholderFor(element));
-      } else {
-        element.remove();
-      }
+      element.remove();
       state.removedCount += 1;
     }
 
@@ -202,6 +159,7 @@
     state.statusText.style.color = state.enabled ? "#56d364" : "#ffb86b";
     state.countText.textContent = String(state.removedCount);
     state.toggleButton.textContent = state.enabled ? "Pause" : "Resume";
+    state.amountButton.textContent = `Keep ${CONFIG.maxMessagesToKeep}`;
     state.toggleButton.setAttribute("aria-pressed", String(!state.enabled));
   }
 
@@ -219,6 +177,29 @@
       "font:inherit"
     ].join(";");
     return button;
+  }
+
+  function setPruneAmount() {
+    const nextValue = window.prompt(
+      "How many newest messages should remain rendered?",
+      String(CONFIG.maxMessagesToKeep)
+    );
+
+    if (nextValue === null) {
+      return;
+    }
+
+    const parsed = Number.parseInt(nextValue, 10);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+
+    CONFIG.maxMessagesToKeep = Math.min(
+      CONFIG.maxMessagesToKeepLimit,
+      Math.max(CONFIG.minMessagesToKeep, parsed)
+    );
+    updateBanner();
+    pruneNow();
   }
 
   function installBanner() {
@@ -263,23 +244,31 @@
       }
     });
 
+    const amountButton = makeButton("Keep 30");
+    amountButton.title = "Change how many newest rendered messages are kept.";
+    amountButton.addEventListener("click", setPruneAmount);
+
+    const pruneButton = makeButton("Prune now");
+    pruneButton.addEventListener("click", pruneNow);
+
     const reloadButton = makeButton("Reload");
     reloadButton.title = "Reload normally to restore the real ChatGPT page DOM.";
     reloadButton.addEventListener("click", () => window.location.reload());
 
-    banner.append(label, statusText, countWrap, toggleButton, reloadButton);
+    banner.append(label, statusText, countWrap, amountButton, toggleButton, pruneButton, reloadButton);
     document.documentElement.appendChild(banner);
 
     state.banner = banner;
     state.statusText = statusText;
     state.countText = countText;
     state.toggleButton = toggleButton;
+    state.amountButton = amountButton;
     updateBanner();
   }
 
   function installObserver() {
     state.observer = new MutationObserver((mutations) => {
-      // Ignore mutations caused by our own banner updates/placeholders where possible.
+      // Ignore mutations caused by our own banner updates where possible.
       if (mutations.every((mutation) => mutation.target instanceof Element && mutation.target.closest(`#${CONFIG.bannerId}`))) {
         return;
       }
