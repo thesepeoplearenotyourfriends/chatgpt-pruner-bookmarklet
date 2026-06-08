@@ -36,7 +36,7 @@ Build with Python from the repository root:
 python3 bookmarklet/build_bookmarklet.py
 ```
 
-The stdlib-only build script reads `bookmarklet/pruner-bookmarklet.js`, strips leading/trailing whitespace, percent-encodes it, and writes `bookmarklet/bookmarklet.txt`. The generated output starts with `javascript:`.
+The stdlib-only build script reads `bookmarklet/pruner-bookmarklet.js`, strips leading/trailing whitespace, percent-encodes it, and writes `bookmarklet/bookmarklet.txt`. The generated version is here: https://raw.githubusercontent.com/thesepeoplearenotyourfriends/chatgtpt-browser-pruner-extension/refs/heads/main/bookmarklet/bookmarklet.txt
 
 ## Android / Fennec setup
 
