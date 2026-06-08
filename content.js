@@ -19,21 +19,19 @@
   const CONFIG = {
     enabledByDefault: true,
     maxMessagesToKeep: 30,
+    minMessagesToKeep: 5,
+    maxMessagesToKeepLimit: 500,
     pruneThrottleMs: 750,
+    usePlaceholders: false,
     bannerId: "cgpt-pruner-banner",
 
     /** Prefer stable, semantic containers first. */
-    preferredMessageSelectors: [
-      'main [data-testid^="conversation-turn-"]',
-      'main [data-testid*="conversation-turn"]',
-      'main article[data-testid^="conversation-turn-"]',
-      "main article"
-    ],
+    preferredMessageSelectors: ["main article"],
 
     /** Fallback selectors are intentionally narrow and easy to edit. */
     fallbackMessageSelectors: [
-      'main [data-message-author-role]',
-      'main [data-message-id]'
+      'main [data-testid^="conversation-turn-"]',
+      'main [data-message-author-role]'
     ],
 
     /** Never prune anything inside these areas. */
@@ -67,11 +65,16 @@
     statusText: null,
     countText: null,
     toggleButton: null,
-    pruneButton: null
+    amountButton: null
   };
 
   function uniqueElements(elements) {
     return [...new Set(elements)].filter((element) => element instanceof HTMLElement);
+  }
+
+  function isVisibleElement(element) {
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
   }
 
   function isUnsafeCandidate(element) {
@@ -95,37 +98,20 @@
     return rect.height < 24;
   }
 
-  function getTopLevelCandidates(elements) {
-    const candidates = uniqueElements(
-      uniqueElements(elements).map(
-        (element) => element.closest('[data-testid^="conversation-turn-"]') || element.closest("article") || element
-      )
-    )
-      .filter((element) => !isUnsafeCandidate(element))
-      .sort((first, second) => {
-        const position = first.compareDocumentPosition(second);
-        return position & Node.DOCUMENT_POSITION_PRECEDING ? 1 : -1;
-      });
-
-    return candidates.filter((element, index, allCandidates) => {
-      return !allCandidates.some((other, otherIndex) => {
-        return otherIndex !== index && other.contains(element);
-      });
-    });
-  }
-
   function getMessageCandidates() {
-    const preferred = getTopLevelCandidates(
+    const preferred = uniqueElements(
       CONFIG.preferredMessageSelectors.flatMap((selector) => [...document.querySelectorAll(selector)])
-    );
+    ).filter((element) => !isUnsafeCandidate(element));
 
     if (preferred.length > 0) {
       return preferred;
     }
 
-    return getTopLevelCandidates(
+    return uniqueElements(
       CONFIG.fallbackMessageSelectors.flatMap((selector) => [...document.querySelectorAll(selector)])
-    );
+    )
+      .map((element) => element.closest("article") || element)
+      .filter((element) => !isUnsafeCandidate(element));
   }
 
   function pruneNow() {
@@ -135,7 +121,7 @@
       return;
     }
 
-    const candidates = getMessageCandidates();
+    const candidates = getMessageCandidates().filter(isVisibleElement);
 
     if (!candidates.length) {
       updateBanner();
@@ -173,6 +159,7 @@
     state.statusText.style.color = state.enabled ? "#56d364" : "#ffb86b";
     state.countText.textContent = String(state.removedCount);
     state.toggleButton.textContent = state.enabled ? "Pause" : "Resume";
+    state.amountButton.textContent = `Keep ${CONFIG.maxMessagesToKeep}`;
     state.toggleButton.setAttribute("aria-pressed", String(!state.enabled));
   }
 
@@ -182,8 +169,8 @@
     button.textContent = label;
     button.style.cssText = [
       "border:1px solid rgba(255,255,255,.25)",
-      "border-radius:999px",
-      "padding:2px 6px",
+      "border-radius:7px",
+      "padding:4px 8px",
       "background:rgba(255,255,255,.12)",
       "color:inherit",
       "cursor:pointer",
@@ -192,6 +179,28 @@
     return button;
   }
 
+  function setPruneAmount() {
+    const nextValue = window.prompt(
+      "How many newest messages should remain rendered?",
+      String(CONFIG.maxMessagesToKeep)
+    );
+
+    if (nextValue === null) {
+      return;
+    }
+
+    const parsed = Number.parseInt(nextValue, 10);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+
+    CONFIG.maxMessagesToKeep = Math.min(
+      CONFIG.maxMessagesToKeepLimit,
+      Math.max(CONFIG.minMessagesToKeep, parsed)
+    );
+    updateBanner();
+    pruneNow();
+  }
 
   function installBanner() {
     if (document.getElementById(CONFIG.bannerId)) {
@@ -203,28 +212,28 @@
     banner.style.cssText = [
       "position:fixed",
       "right:12px",
-      "top:12px",
+      "bottom:12px",
       "z-index:2147483647",
       "display:flex",
       "align-items:center",
-      "gap:5px",
-      "padding:5px 7px",
+      "gap:8px",
+      "padding:8px 10px",
       "border:1px solid rgba(255,255,255,.22)",
-      "border-radius:999px",
-      "box-shadow:0 4px 16px rgba(0,0,0,.22)",
+      "border-radius:12px",
+      "box-shadow:0 8px 28px rgba(0,0,0,.28)",
       "background:rgba(24,24,27,.92)",
       "color:#f4f4f5",
-      "font:11px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      "font:12px/1.25 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
       "backdrop-filter:blur(8px)"
     ].join(";");
 
     const label = document.createElement("span");
-    label.textContent = "Pruner ";
+    label.textContent = "Pruner: ";
 
     const statusText = document.createElement("strong");
     const countWrap = document.createElement("span");
     const countText = document.createElement("strong");
-    countWrap.append(" · ", countText);
+    countWrap.append(" pruned: ", countText);
 
     const toggleButton = makeButton("Pause");
     toggleButton.addEventListener("click", () => {
@@ -235,17 +244,25 @@
       }
     });
 
-    const pruneButton = makeButton("Prune");
+    const amountButton = makeButton("Keep 30");
+    amountButton.title = "Change how many newest rendered messages are kept.";
+    amountButton.addEventListener("click", setPruneAmount);
+
+    const pruneButton = makeButton("Prune now");
     pruneButton.addEventListener("click", pruneNow);
 
-    banner.append(label, statusText, countWrap, toggleButton, pruneButton);
+    const reloadButton = makeButton("Reload");
+    reloadButton.title = "Reload normally to restore the real ChatGPT page DOM.";
+    reloadButton.addEventListener("click", () => window.location.reload());
+
+    banner.append(label, statusText, countWrap, amountButton, toggleButton, pruneButton, reloadButton);
     document.documentElement.appendChild(banner);
 
     state.banner = banner;
     state.statusText = statusText;
     state.countText = countText;
     state.toggleButton = toggleButton;
-    state.pruneButton = pruneButton;
+    state.amountButton = amountButton;
     updateBanner();
   }
 
