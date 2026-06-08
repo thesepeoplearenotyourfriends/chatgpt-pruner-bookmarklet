@@ -198,10 +198,10 @@
       return;
     }
 
-    state.statusText.textContent = state.enabled ? "enabled" : "paused";
+    state.statusText.textContent = state.enabled ? "" : "";
     state.statusText.style.color = state.enabled ? "#56d364" : "#ffb86b";
     state.countText.textContent = String(state.removedCount);
-    state.toggleButton.textContent = state.enabled ? "Pause" : "Resume";
+    state.toggleButton.textContent = state.enabled ? "⏸" : "▶";
     state.toggleButton.setAttribute("aria-pressed", String(!state.enabled));
   }
 
@@ -247,14 +247,14 @@
     ].join(";");
 
     const label = document.createElement("span");
-    label.textContent = "Pruner: ";
+    label.textContent = "";
 
     const statusText = document.createElement("strong");
     const countWrap = document.createElement("span");
     const countText = document.createElement("strong");
-    countWrap.append(" pruned: ", countText);
+    countWrap.append(" #: ", countText);
 
-    const toggleButton = makeButton("Pause");
+    const toggleButton = makeButton("⏸");
     toggleButton.addEventListener("click", () => {
       state.enabled = !state.enabled;
       updateBanner();
@@ -263,7 +263,7 @@
       }
     });
 
-    const reloadButton = makeButton("Reload");
+    const reloadButton = makeButton("↻");
     reloadButton.title = "Reload normally to restore the real ChatGPT page DOM.";
     reloadButton.addEventListener("click", () => window.location.reload());
 
