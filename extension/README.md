@@ -26,9 +26,9 @@ The manifest is intentionally Manifest V2 because the extension is only a conten
 ## What it does
 
 - Runs as a content script on `chatgpt.com` and `chat.openai.com`.
-- Keeps the newest message area, using both a configurable maximum message count and a viewport-based "last few screenfuls" rule.
+- Keeps the newest message area, tuned for mobile by retaining roughly 12 mounted message containers plus the current screenful.
 - Replaces old removed messages with small placeholders by default, reducing abrupt scroll-height collapse.
-- Adds a small fixed-position banner with enabled/paused status, pruned count, pause/resume control, and normal page reload control.
+- Adds a small top-left fixed-position banner, offset from the mobile hamburger menu, with enabled/paused status, total pruned count, last found/cut diagnostics, pause/resume control, and normal page reload control.
 
 ## Safety / privacy boundaries
 

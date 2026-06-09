@@ -14,11 +14,13 @@ The old browser-extension version still exists in [`extension/`](extension/), bu
 
 - Runs only when you manually invoke it on `chatgpt.com` or `chat.openai.com`.
 - Finds old ChatGPT message containers conservatively inside `main`.
-- Keeps recent/current messages.
+- Keeps roughly the newest 12 mounted message containers plus the current screenful.
+- Starts pruning once more than 14 eligible rendered message nodes are mounted.
 - Removes older rendered message DOM nodes, leaving small placeholders by default to reduce scroll-height jumps.
 - Automatically re-checks after page changes, scrolling, and resizing.
-- Shows a tiny bottom-right control with:
-  - `#: N` pruned message count
+- Re-running the bookmarklet while its control is visible forces an immediate scan.
+- Shows a tiny top-left control, offset to avoid the mobile hamburger menu, with:
+  - `N f:X c:Y` where `N` is total pruned messages, `f` is the last found eligible mounted message count, and `c` is the last successful cut count
   - `⏸` / `▶` pause and resume
   - `↻` reload to restore the normal ChatGPT page DOM
 
