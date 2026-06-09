@@ -18,9 +18,9 @@
 
   const CONFIG = {
     enabledByDefault: true,
-    maxMessagesToKeep: 24,
-    keepScreenfuls: 3,
-    minMessagesBeforePrune: 10,
+    maxMessagesToKeep: 12,
+    keepScreenfuls: 1,
+    minMessagesBeforePrune: 2,
     pruneThrottleMs: 750,
     usePlaceholders: true,
     placeholderClass: "cgpt-pruner-placeholder",
@@ -60,6 +60,8 @@
   const state = {
     enabled: CONFIG.enabledByDefault,
     removedCount: 0,
+    lastFound: 0,
+    lastCut: 0,
     pruneTimer: 0,
     observer: null,
     banner: null,
@@ -157,6 +159,9 @@
     }
 
     const candidates = getMessageCandidates().filter(isVisibleElement);
+    state.lastFound = candidates.length;
+    state.lastCut = 0;
+
     if (candidates.length <= CONFIG.maxMessagesToKeep + CONFIG.minMessagesBeforePrune) {
       updateBanner();
       return;
@@ -170,6 +175,7 @@
       return !shouldKeepByViewport(element);
     });
 
+    let cutCount = 0;
     for (const element of toPrune) {
       if (!element.parentNode || isUnsafeCandidate(element)) {
         continue;
@@ -180,8 +186,10 @@
       } else {
         element.remove();
       }
+      cutCount += 1;
       state.removedCount += 1;
     }
+    state.lastCut = cutCount;
 
     updateBanner();
   }
@@ -198,9 +206,9 @@
       return;
     }
 
-    state.statusText.textContent = state.enabled ? "" : "";
+    state.statusText.textContent = state.enabled ? "on" : "paused";
     state.statusText.style.color = state.enabled ? "#56d364" : "#ffb86b";
-    state.countText.textContent = String(state.removedCount);
+    state.countText.textContent = `${state.removedCount} f:${state.lastFound} c:${state.lastCut}`;
     state.toggleButton.textContent = state.enabled ? "⏸" : "▶";
     state.toggleButton.setAttribute("aria-pressed", String(!state.enabled));
   }
@@ -230,8 +238,8 @@
     banner.id = CONFIG.bannerId;
     banner.style.cssText = [
       "position:fixed",
-      "right:12px",
-      "bottom:12px",
+      "left:calc(env(safe-area-inset-left, 0px) + 64px)",
+      "top:calc(env(safe-area-inset-top, 0px) + 12px)",
       "z-index:2147483647",
       "display:flex",
       "align-items:center",
@@ -247,12 +255,12 @@
     ].join(";");
 
     const label = document.createElement("span");
-    label.textContent = "";
+    label.textContent = "prune";
 
     const statusText = document.createElement("strong");
     const countWrap = document.createElement("span");
     const countText = document.createElement("strong");
-    countWrap.append(" #: ", countText);
+    countWrap.append(" ", countText);
 
     const toggleButton = makeButton("⏸");
     toggleButton.addEventListener("click", () => {
